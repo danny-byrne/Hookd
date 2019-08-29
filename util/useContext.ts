@@ -5,7 +5,7 @@ import { ENETRESET } from 'constants';
 const {parse,traverse,t,generate} = parserMethods;
 const fs: any = require('fs');
 const path: any = require('path');
-import {Node, Path} from './constants'
+// import {Node, Path} from './constants/interfaces'
 
 const file: string = fs.readFileSync(path.resolve((__dirname as string), '../static/dummyData/app.jsx')).toString();
 
@@ -27,6 +27,7 @@ interface Node {
   params: {params: any []};
   arguments: {arguments: any []};
   key: {key: any []}
+  expression: {expression: any}
 }
 
 interface Path {
@@ -70,16 +71,15 @@ let contextToUse: string = '';
 //contextCount is something we need during the process to build the const...useContext(context) statement.  
 let contextCount: number = 0;
 //ClassBody -> ClassMethod
-const UseContextDecl: {ClassDeclaration: (path: Path) => void} = {
-    //if DeclareStore includes path.get...path.get('JSXIdentifier').t.identifier({name})  //do the conversion
+const ClassDeclVisitor: {ClassDeclaration: (path: Path) => void} = {
+  //if DeclareStore includes path.get...path.get('JSXIdentifier').t.identifier({name})  //do the conversion
   ClassDeclaration(path: Path): void {
     // console.log('inside the use Context Declaration Builder Function')
     //traverse...
+    
     path.traverse({
       JSXMemberExpression(path: Path): void {
         // console.log('inside the classMethod traversal stage')
-        
-
           //if right side of expression is "consumer", grab the value on the left side of the dot to constuct the useContext statement
         if(path.node.property.name.toLowerCase() === 'consumer'){
           // console.group('match found');
@@ -87,6 +87,7 @@ const UseContextDecl: {ClassDeclaration: (path: Path) => void} = {
           if(DeclarationStore.includes(path.node.object.name)){
             contextCount++;
             contextToUse = path.node.object.name;
+            // importedContext = 
             // console.log('context is found and contextToUse is', contextToUse);
           }
         }
@@ -100,22 +101,69 @@ const UseContextDecl: {ClassDeclaration: (path: Path) => void} = {
         // console.log(path.node.type);
         //while loop to break out of when we have inserted the appropriate amount of useContext statements with the imported Contexts that we have
         //so we don't insert a useContext statement after EVERY classmethod.  
-        while(i < contextCount/2){
-          path.insertBefore(
-
-            t.variableDeclaration("const", 
-            [t.variableDeclarator(
-              t.identifier('imported'+`${contextToUse}`), 
-              t.callExpression(t.identifier("useContext"),
-              [t.identifier(`${contextToUse}`)]
-              )
-              )]
-            )
-          )  
-          i++;
-        }
+        // while(i < contextCount/2){
+        //   path.insertBefore(
+        //     t.variableDeclaration("const", 
+        //     [t.variableDeclarator(
+        //       t.identifier(`${contextToUse}`), 
+        //       t.callExpression(t.identifier("useContext"),
+        //       [t.identifier(`${contextToUse}`)]
+        //       )
+        //       )]
+        //     )
+        //   )  
+        //   i++;
+        // }
       }
-    })          
+    }) 
+    let importedContext: string = 'imported' + contextToUse;
+    path.traverse({
+      JSXElement(path: Path): void {
+        //create </react.fragment>
+        // path.traverse({
+        //   JSXOpeningElement(path: Path): void {
+            path.traverse({
+              JSXMemberExpression(path: Path): void {
+                // console.log('path.node is ', path.node.object.name)
+                // console.log('contextToUse is', contextToUse)
+                if(path.node.object.name === contextToUse){
+                  // console.log ('found a match!!')
+                  path.replaceWith(
+                    t.jSXMemberExpression(t.jSXIdentifier('React'), t.jSXIdentifier('Fragment'))
+                  )
+                }
+              }
+            })
+        path.traverse({
+          JSXExpressionContainer(path: Path): void {
+            path.traverse({
+              ArrowFunctionExpression(path: Path): void{
+                console.log('\\\\path.node is', path.node)
+                path.replaceWith(t.arrowFunctionExpression([
+                  t.identifier(`${importedContext}`)], 
+                  // t.expressionStatement(
+                    t.jsxElement(
+                      t.jsxOpeningElement(t.jsxIdentifier('div')),
+                      t.jsxClosingElement(t.jsxIdentifier('div')),
+                      [t.jsxExpressionContainer(
+                        t.identifier(`${importedContext}`)
+                      )]
+                    )
+                  // )
+                ))
+              }
+            })
+            // path.replaceWith(t.jsxExpressionContainer(
+            //   t.arrowFunctionExpression(
+            //     [importedContext], 
+            //   )
+            // ))
+          }
+        })
+      }
+    })
+
+
   }
 }
 
@@ -207,13 +255,13 @@ parserMethods.traverse(ast, {
   enter(path: any) {
     // traverse through our visitor that we defined above
     // vist the imprt statement, take out component and insert hooks
-    path.traverse(ImpSpecVisitor);
+    // path.traverse(ImpSpecVisitor);
     //export statement visitor looks for the component name, in this case "App", and store 
-    path.traverse(ExportStatementVisitor);
+    // path.traverse(ExportStatementVisitor);
     //visit the import Declaration and push import components into an array to check during the useContextDeclaration in the next traversal
     path.traverse(ImpDeclVisitor);
     //build the use context statement out of the 
-    path.traverse(UseContextDecl);
+    path.traverse(ClassDeclVisitor);
     // path.traverse(ClassToFuncVisitor);
 
   }
