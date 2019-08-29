@@ -116,48 +116,39 @@ const ClassDeclVisitor: {ClassDeclaration: (path: Path) => void} = {
         // }
       }
     }) 
+
     let importedContext: string = 'imported' + contextToUse;
     path.traverse({
       JSXElement(path: Path): void {
-        //create </react.fragment>
-        // path.traverse({
-        //   JSXOpeningElement(path: Path): void {
-            path.traverse({
-              JSXMemberExpression(path: Path): void {
-                // console.log('path.node is ', path.node.object.name)
-                // console.log('contextToUse is', contextToUse)
-                if(path.node.object.name === contextToUse){
-                  // console.log ('found a match!!')
-                  path.replaceWith(
-                    t.jSXMemberExpression(t.jSXIdentifier('React'), t.jSXIdentifier('Fragment'))
-                  )
-                }
-              }
-            })
+        path.traverse({
+          JSXMemberExpression(path: Path): void {
+            // console.log('path.node is ', path.node.object.name)
+            // console.log('contextToUse is', contextToUse)
+            if(path.node.object.name === contextToUse){
+              // console.log ('found a match!!')
+              path.replaceWith(
+                t.jSXMemberExpression(t.jSXIdentifier('React'), t.jSXIdentifier('Fragment'))
+              )
+            }
+          }
+        })
         path.traverse({
           JSXExpressionContainer(path: Path): void {
             path.traverse({
               ArrowFunctionExpression(path: Path): void{
-                console.log('\\\\path.node is', path.node)
-                path.replaceWith(t.arrowFunctionExpression([
-                  t.identifier(`${importedContext}`)], 
-                  // t.expressionStatement(
+                // console.log('\\\\path.node is', path.node)
+                path.replaceWith(
                     t.jsxElement(
-                      t.jsxOpeningElement(t.jsxIdentifier('div')),
+                      t.jsxOpeningElement((t.jsxIdentifier('div')),[],false),
                       t.jsxClosingElement(t.jsxIdentifier('div')),
                       [t.jsxExpressionContainer(
                         t.identifier(`${importedContext}`)
-                      )]
+                      )],
+                      false
                     )
-                  // )
-                ))
+                )
               }
             })
-            // path.replaceWith(t.jsxExpressionContainer(
-            //   t.arrowFunctionExpression(
-            //     [importedContext], 
-            //   )
-            // ))
           }
         })
       }
