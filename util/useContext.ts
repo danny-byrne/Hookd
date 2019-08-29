@@ -42,6 +42,7 @@ interface Path {
   insertBefore: (newNode: any) => any;
   isIdentifier:(type: boolean) => false;
   remove: () => void;
+
 }
 
 
@@ -138,14 +139,9 @@ const ClassDeclVisitor: {ClassDeclaration: (path: Path) => void} = {
               ArrowFunctionExpression(path: Path): void{
                 // console.log('\\\\path.node is', path.node)
                 path.replaceWith(
-                    t.jsxElement(
-                      t.jsxOpeningElement((t.jsxIdentifier('div')),[],false),
-                      t.jsxClosingElement(t.jsxIdentifier('div')),
-                      [t.jsxExpressionContainer(
-                        t.identifier(`${importedContext}`)
-                      )],
-                      false
-                    )
+                  t.ExpressionStatement(
+                    t.identifier(`${importedContext}`)
+                  )
                 )
               }
             })
@@ -159,6 +155,28 @@ const ClassDeclVisitor: {ClassDeclaration: (path: Path) => void} = {
 }
 
 
+/**
+ * 
+ * path.traverse({
+          JSXExpressionContainer(path: Path): void {
+            path.traverse({
+              ArrowFunctionExpression(path: Path): void{
+                // console.log('\\\\path.node is', path.node)
+                path.replaceWith(
+                    t.jsxElement(
+                      t.jsxOpeningElement((t.jsxIdentifier('div')),[],false),
+                      t.jsxClosingElement(t.jsxIdentifier('div')),
+                      [t.jsxExpressionContainer(
+                        t.identifier(`${importedContext}`)
+                      )],
+                      false
+                    )
+                )
+              }
+            })
+          }
+        })
+ */
 ​
 
 // method for traversing through all the ImportSpecifiers, inserting hooks statements and taking out "component"
