@@ -2,6 +2,7 @@ import {t} from './parser';
 import {Path, stateDep, handlers} from './interfaces';
 import {createFunctionDefinitions, checkKeyIdentifier, parseStateDep, checkIfHandler, makeUseStateNode, setStateToHooks, stateToHooks, thisRemover, buildStateDepTree} from '../helperfunctions';
 import * as n from './names';
+import { unstable_renderSubtreeIntoContainer } from 'react-dom';
 
 const DeclarationStore: string[] = [];
 let isAComponent: boolean = true;
@@ -55,7 +56,7 @@ export const memberExpVisitor: object = {
 export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} = {
   ClassDeclaration(path: Path): void {
     isAComponent = path.node.superClass && (path.get('superClass').isIdentifier({name: 'Component'}) || path.get('superClass').get('property').isIdentifier({name: 'Component'}));
-    console.log('isAComponent:', isAComponent);
+    // console.log('isAComponent:', isAComponent);
     if (!isAComponent) return path.stop();
     // class declaration
     let componentName: string = path.get('id').node.name;
@@ -75,7 +76,7 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
     let isStatic: boolean = false;
     let isContext: boolean = false;
     let objectPattern: any;
-
+    let returnStatement: any;
 
 
     path.traverse({
@@ -105,7 +106,7 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
           // console.log("inside the ClassMethod path.node is:", path.node);
           path.traverse({
             BlockStatement(path: Path): void {
-              // console.log('inside the blockStatement path.node is:', path.node)
+              console.log('inside the blockStatement path.node is:', path.node)
               // let curPath: { body: any[]; } = path.node.body;
               // console.log('curPath is ', curPath);
               path.traverse({
@@ -116,9 +117,9 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
                       // console.log("inside the VariableDeclarator path.node is", path.node);
                       path.traverse({
                         MemberExpression(path: Path): void {
-                          console.log("inside the MemberExpression path.node is", path.node);
-                          console.log("path.node.property.name is", path.node.property.name)
-                          console.log(path.node.property.name === "context")
+                          // console.log("inside the MemberExpression path.node is", path.node);
+                          // console.log("path.node.property.name is", path.node.property.name)
+                          // console.log(path.node.property.name === "context")
                           if(path.node.property.name === "context"){
                             isContext = true;
                             console.log(isContext);
@@ -126,11 +127,12 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
                         }
                       })
                       if(isContext){
-                        console.log("path.node.id is", path.node.id.type)
+                        // console.log("path.node.id is", path.node.id.type)
                         if(path.node.id.type === "ObjectPattern"){
-                          console.log('grabbing objectPattern')
+                          // console.log('grabbing objectPattern')
                           objectPattern = path.node.id;
-                          console.log('objectPattern is', objectPattern)
+                          // console.log('path.parentPath.node.type is ', path.parentPath.node.type)
+                          // console.log('objectPattern is', objectPattern)
                           path.parentPath.remove();
                         }
                       }  
@@ -138,6 +140,26 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
                   })
                 }
               })
+              if(isStatic && isContext){
+                path.traverse({
+                  ReturnStatement(path :Path): void {
+                    // console.log('traversing return statement, path.node is', path.node)
+                    returnStatement = path.node;
+                  }
+                })
+              }
+            }
+          })
+          path.traverse({
+            BlockStatement(path: Path): void {
+              // path.traverse({
+                // VariableDeclaration(path: Path): void {
+                  // console.log('going to push returnStatement which is:', returnStatement)
+                  // console.log('the path we are in is:', path.node)
+                  // path.node.body.push(returnStatement)
+                  
+              //   }
+              // })
             }
           })
         }
@@ -149,12 +171,13 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
      */
     
     if(isStatic && isContext && objectPattern){
-      console.log('replacing the classProperty with useContext')
-      console.log('objectpattern is', objectPattern)
+      // console.log('replacing the classProperty with useContext')
+      // console.log('objectpattern is', objectPattern)
       path.traverse({
         ClassProperty(path: Path): void {
           if(path.node.static) { 
-            console.log('static found! replacing with useContext Statement')
+            // console.log('static found! replacing with useContext Statement')
+            // console.log('path.node is', path.node)
             path.replaceWith(
               t.variableDeclaration("const",
                 [t.variableDeclarator(objectPattern,
@@ -169,6 +192,15 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
           }
         }
       })
+        
+          
+      // path.traverse({
+      //   ReturnStatement(Path: Path): void {
+      //     console.log('about to get the return statement, yee haw!')
+      //     returnStatement = path.node;
+      //     console.log("returnStatement is", returnStatement)
+      //   }
+      // })
     }
 
 
@@ -186,8 +218,8 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
             let expressionStatement: any = path.node;
             let functionDeclaration: any;
             if (path.parentPath.parentPath.node.type === 'FunctionDeclaration'){
-              console.log('----------------')
-              console.log(path.parentPath.parentPath.node.id.name);
+              // console.log('----------------')
+              // console.log(path.parentPath.parentPath.node.id.name);
               functionDeclaration = path.parentPath.parentPath.node;
             }
             path.traverse({
@@ -198,7 +230,7 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
                   if (functionDeclaration) expressionStatement = functionDeclaration;
                   if (t.isIdentifier(path.node.property, {name: 'state'}) && stateName) {
                     buildStateDepTree(currMethodName, expressionStatement, stateDependencies, stateName, false);
-                    console.log(stateDependencies);
+                    // console.log(stateDependencies);
                   }
                   if(t.isIdentifier(path.node.property, {name: 'setState'})) {
                     const stateProperties: any[] = path.parentPath.node.arguments[0].properties;
@@ -244,7 +276,11 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
         if(cdm) path.remove();
         if(cdu) path.remove();
         if(cwu) path.remove();
-        if(render) path.replaceWith(path.node.body.body[0]);
+        if(render) {
+          // console.log("path.node.body.body is:", path.node.body.body)
+          path.replaceWithMultiple(path.node.body.body);
+          
+        } 
      }
     })
     methodPaths.forEach(arr => {
@@ -267,7 +303,7 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
               // if DeclarationStore includes left side expession
               if(DeclarationStore.includes(path.node.object.name)){
                 contextToUse = path.node.object.name;
-                console.log(contextToUse);
+                // console.log(contextToUse);
                 // console.log('context is found and contextToUse is', contextToUse);
               }
             }
@@ -295,18 +331,20 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
         })
       }
     })
-   
-    path.traverse(memberExpVisitor);
-    path.get('body').unshiftContainer('body',
-      t.variableDeclaration("const", 
-      [t.variableDeclarator(
-        t.identifier('imported'+`${contextToUse}`), 
-        t.callExpression(t.identifier("useContext"),
-        [t.identifier(`${contextToUse}`)]
+    //if a static declaration has not been found we will structure the useContext statement this way.
+    if(!isStatic){
+      path.traverse(memberExpVisitor);
+      path.get('body').unshiftContainer('body',
+        t.variableDeclaration("const", 
+        [t.variableDeclarator(
+          t.identifier('imported'+`${contextToUse}`), 
+          t.callExpression(t.identifier("useContext"),
+          [t.identifier(`${contextToUse}`)]
+          )
+          )]
         )
-        )]
-      )
-    ) 
+      ) 
+    }
     path.replaceWith(
       t.variableDeclaration("const", 
       [t.variableDeclarator(
@@ -315,5 +353,5 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
         )
       ])
     )
-  }
+    }
   }
