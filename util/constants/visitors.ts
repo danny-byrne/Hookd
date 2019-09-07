@@ -70,6 +70,108 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
     const handlers: handlers[] = [];
     // dependency tree of state
     const stateDependencies: stateDep = {};
+
+    
+    let isStatic: boolean = false;
+    let isContext: boolean = false;
+    let objectPattern: any;
+
+
+
+    path.traverse({
+      ClassProperty(path: Path): void {
+        // console.log("path.node is:", path.node)
+        // console.log("static is:", path.node.static)
+        // console.log("path.value.name is:", path.node.value.name)
+        if(path.node.static) { 
+          console.log('static found')
+          isStatic = true;
+        }
+        if (!isStatic) path.stop();
+        // console.log('isStatic is:', isStatic);
+        contextToUse = path.node.value.name;
+        // console.log("contextToUse is", contextToUse)
+        // path.remove();
+      }
+    })
+
+    /**
+     * //this method looks for a static contextType = ${importedCntext} statement and grabs the context declared, and also looks for a 'this.context' expression within the render, if found, it grabs the Object pattern that we will use to combine and destructure from useContext(imported context) in the next step useContext(contextToUse)  <- new context name we have given to the variableDeclarator
+     */
+    
+    if(isStatic){
+      path.traverse({
+        ClassMethod(path: Path): void {
+          // console.log("inside the ClassMethod path.node is:", path.node);
+          path.traverse({
+            BlockStatement(path: Path): void {
+              // console.log('inside the blockStatement path.node is:', path.node)
+              // let curPath: { body: any[]; } = path.node.body;
+              // console.log('curPath is ', curPath);
+              path.traverse({
+                VariableDeclaration(path: Path): void {
+                  // console.log("inside the VariableDeclaration path.node is:", path.node);
+                  path.traverse({
+                    VariableDeclarator(path: Path): void {
+                      // console.log("inside the VariableDeclarator path.node is", path.node);
+                      path.traverse({
+                        MemberExpression(path: Path): void {
+                          console.log("inside the MemberExpression path.node is", path.node);
+                          console.log("path.node.property.name is", path.node.property.name)
+                          console.log(path.node.property.name === "context")
+                          if(path.node.property.name === "context"){
+                            isContext = true;
+                            console.log(isContext);
+                          }
+                        }
+                      })
+                      if(isContext){
+                        console.log("path.node.id is", path.node.id.type)
+                        if(path.node.id.type === "ObjectPattern"){
+                          console.log('grabbing objectPattern')
+                          objectPattern = path.node.id;
+                          console.log('objectPattern is', objectPattern)
+                          path.parentPath.remove();
+                        }
+                      }  
+                    }
+                  })
+                }
+              })
+            }
+          })
+        }
+      })
+    }
+
+    /**
+     * this method only fires if we have found a static declaration, this.context is used within the render, traverses to the  classProperty node, looks for static, and if is found, replaces with the const declaration with the Object pattern and useContext with contextToUse passed in as the arg
+     */
+    
+    if(isStatic && isContext && objectPattern){
+      console.log('replacing the classProperty with useContext')
+      console.log('objectpattern is', objectPattern)
+      path.traverse({
+        ClassProperty(path: Path): void {
+          if(path.node.static) { 
+            console.log('static found! replacing with useContext Statement')
+            path.replaceWith(
+              t.variableDeclaration("const",
+                [t.variableDeclarator(objectPattern,
+                  t.callExpression(
+                    t.identifier('useContext'),[
+                      t.identifier(`${contextToUse}`)
+                    ]
+                  )
+                )]
+              )
+            )
+          }
+        }
+      })
+    }
+
+
     path.traverse({
       ClassMethod(path: Path): void {
         let currMethodName = path.node.key.name;

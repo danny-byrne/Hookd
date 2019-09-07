@@ -15,6 +15,10 @@ export interface Node {
   operator:{body: any[]}
   program: {program: any};
   declaration: any;
+  static: boolean;
+  id: any;
+  properties: any[];
+  value: {name: string};
 }
 export interface Path {
   node: Node;
