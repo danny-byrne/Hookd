@@ -20,6 +20,14 @@ function createReturnStatement (returnFunction: any): any {
     )
     )]
 }
+
+export function staticToUseContext (context: string){
+  
+}
+
+
+
+
 export function createUseEffect (body: any[], opts?: {lcm?: string, returnFunction?: any[], stateToCheck?: any []} ): string {
   // determine what second argument (if any) should be passed into createSecondArg
   const secondArg: any[] = 
@@ -42,7 +50,6 @@ export function createUseEffect (body: any[], opts?: {lcm?: string, returnFuncti
     )
   );
 }
-
 export function createFunctionDefinitions(name: string, paramNames: any[], body: any[]) {
   // const params: any[] = paramNames.map(param => t.identifier(param));
   return t.functionDeclaration(t.identifier(name), 
@@ -50,8 +57,7 @@ export function createFunctionDefinitions(name: string, paramNames: any[], body:
     t.blockStatement(body)
   )
 }
-
-// checks for key identifiers for method names
+// checks for key identifiers for method na mes
 export function checkKeyIdentifier(name: string, path: Path): any {
   return path.get('key').isIdentifier({name})
 }

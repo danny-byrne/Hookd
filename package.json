@@ -4,7 +4,7 @@
   "description": "a cli tool to convert React class components to hooks",
   "scripts": {
     "build": "NODE_ENV=production webpack",
-    "dev": "NODE_ENV=development nodemon index.ts static/dummyData/App.jsx",
+    "dev": "NODE_ENV=development nodemon index.ts static/dummyData/App2.jsx",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.5.5",
+    "@babel/plugin-syntax-class-properties": "^7.2.0",
     "@babel/preset-env": "^7.5.5",
     "@babel/preset-react": "^7.0.0",
     "@babel/preset-typescript": "^7.3.3",
@@ -35,6 +36,7 @@
   "dependencies": {
     "@babel/generator": "^7.5.5",
     "@babel/parser": "^7.5.5",
+    "@babel/plugin-proposal-class-properties": "^7.5.5",
     "@babel/traverse": "^7.5.5",
     "@babel/types": "^7.5.5",
     "@types/node": "^12.7.2",

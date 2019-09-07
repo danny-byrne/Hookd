@@ -12,9 +12,13 @@ export interface Node {
   object: {name: string};
   specifiers: {name: string};
   superClass: {name: string};
-  operator:{body: any[]}
+  operator:{body: any[]};
+  value: {name: string};
   program: {program: any};
   declaration: any;
+  static: boolean;
+  id: any;
+  properties: any[];
 }
 export interface Path {
   node: Node;
