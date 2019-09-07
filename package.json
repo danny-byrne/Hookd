@@ -2,27 +2,27 @@
   "name": "hookd",
   "version": "1.0.0",
   "description": "a cli tool to convert React class components to hooks",
-  "main": "index.js",
   "scripts": {
-    "start": "nodemon server/main.ts",
     "build": "NODE_ENV=production webpack",
-    "dev": "NODE_ENV=development nodemon util/useContext.ts util/useEffect.ts",
+    "dev": "NODE_ENV=development nodemon index.ts static/dummyData/App2.jsx",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "Devon Vaccarino ",
+  "author": "Devon Vaccarino",
   "license": "ISC",
   "bin": {
     "hookd": "./index.js"
   },
   "devDependencies": {
     "@babel/core": "^7.5.5",
+    "@babel/plugin-syntax-class-properties": "^7.2.0",
     "@babel/preset-env": "^7.5.5",
     "@babel/preset-react": "^7.0.0",
     "@babel/preset-typescript": "^7.3.3",
     "@types/react": "^16.9.2",
     "@types/react-dom": "^16.9.0",
     "babel-loader": "^8.0.6",
+    "banner-webpack-plugin": "^0.2.3",
     "css-loader": "^3.2.0",
     "nodemon": "^1.19.1",
     "sass-loader": "^7.2.0",
@@ -36,13 +36,11 @@
   "dependencies": {
     "@babel/generator": "^7.5.5",
     "@babel/parser": "^7.5.5",
+    "@babel/plugin-proposal-class-properties": "^7.5.5",
     "@babel/traverse": "^7.5.5",
     "@babel/types": "^7.5.5",
     "@types/node": "^12.7.2",
     "babel-generator": "^6.26.1",
-    "express": "^4.17.1",
-    "react": "^16.9.0",
-    "react-dom": "^16.9.0",
     "webpack": "^4.39.2"
   }
 }

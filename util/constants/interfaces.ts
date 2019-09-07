@@ -1,3 +1,4 @@
+
 export interface Node {
   type: string;
   name: string;
@@ -11,11 +12,19 @@ export interface Node {
   object: {name: string};
   specifiers: {name: string};
   superClass: {name: string};
-  operator:{body: any[]}
+  operator:{body: any[]};
+  value: {name: string};
+  program: {program: any};
+  declaration: any;
+  static: boolean;
+  id: any;
+  properties: any[];
 }
 export interface Path {
   node: Node;
   traverse: ({}) => any;
+  stop: () => void;
+  skip: () => void;
   replaceWithMultiple: ([]:any) => any;
   replaceWith: (newNode: any) => any;
   findParent: (callback: (path: Path) => any) => any;
@@ -27,25 +36,32 @@ export interface Path {
   insertBefore: (node: any) => any;
   insertAfter: (node: any) => any;
   remove: () => void;
+  unshiftContainer: (newNode: Node) => void;
+  isIdentifier:(type: boolean) => false;
+}
+export interface stateDep {
+  [state: string]: stateProps;
+}
+type stateProps = {
+  lcms?: lcms[],
+  handlers?: handlers[]
+}
+export interface lcms {
+  name: string;
+  expressionStatement?: expressionStatement;
+  functionDeclaration?: functionDeclaration;
 }
 export interface expressionStatement {
-  node: Node;
-  // check if a function
-  setsState?: boolean;
+node: Node;
+// check if a function
+setsState?: boolean;
 };
 export interface functionDeclaration {
   node: Node;
-  name: string;
   setsState?: boolean;
 }
-type stateProps = 
-{[lcm: string]: {
-  expressionStatement?: expressionStatement;
-  functionDeclaration?: functionDeclaration;
-}} 
-& {expressionStatement?: expressionStatement}
-& {functionDeclaration?: functionDeclaration}
-
-export interface stateDep {
-      [state: string]: stateProps;
+export interface handlers {
+  name?: string;
+  node?: any; 
+  setsState?: boolean; 
 }
