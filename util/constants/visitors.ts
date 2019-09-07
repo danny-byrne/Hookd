@@ -290,6 +290,8 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
     parseStateDep(stateDependencies).forEach(UE => {
       path.get('body').unshiftContainer('body', UE);
     })
+    let contextStore: string[] = [];
+    let multipleContexts: boolean = false;
     // prepends 'const [state, setState] = useState(initVal)' outside of the constructor function
     // makeUseStateNode(path as any, state as any);
     makeUseStateNode(useStateData[0] as any, useStateData[1] as any).forEach(stateNode => path.get('body').unshiftContainer('body', stateNode))
