@@ -5,6 +5,7 @@ import * as n from './names';
 import { unstable_renderSubtreeIntoContainer } from 'react-dom';
 
 const DeclarationStore: string[] = [];
+const ContextStore: string[] = [];
 let isAComponent: boolean = true;
 export const ImpSpecVisitor: {ImportSpecifier: (path: Path)=> void} ={
   // method for traversing through all the ImportSpecifiers
@@ -299,38 +300,44 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
       JSXElement(path: Path): void {
         path.traverse({
           JSXMemberExpression(path: Path): void {
-              //if right side of expression is "consumer", grab the value on the left side of the dot to constuct the useContext statement
-            if(path.node.property.name.toLowerCase() === 'consumer'){
+              //if right side of expression is "consumer", grab the value on the left side of the dot to construct the useContext statement
+            if(path.node.property.name.toLowerCase() === 'consumer' && DeclarationStore.includes(path.node.object.name)){
               // console.group('match found');
               // if DeclarationStore includes left side expession
-              if(DeclarationStore.includes(path.node.object.name)){
-                contextToUse = path.node.object.name;
-                // console.log(contextToUse);
-                // console.log('context is found and contextToUse is', contextToUse);
-              }
+              ContextStore.push(path.node.object.name);
             }
-            if(path.node.object.name === contextToUse){
-              // console.log ('found a match!!')
+            if(ContextStore.length > 1){
+              multipleContexts = true;
+            } 
+            if(!multipleContexts){
+              contextToUse = ContextStore[0];
               path.replaceWith(
                 t.jSXMemberExpression(t.jSXIdentifier('React'), t.jSXIdentifier('Fragment'))
               )
-            }
+            } 
           }
         })
-        path.traverse({
-          JSXExpressionContainer(path: Path): void {
-            let importedContext: string = 'imported' + contextToUse;
-            path.traverse({
-              ArrowFunctionExpression(path: Path): void{
-                path.replaceWith(
-                  t.ExpressionStatement(
-                    t.identifier(`${importedContext}`)
+
+        console.log('contextStore has more than one item, transforming ')
+        ContextStore.forEach((e) => {
+          path.traverse({
+            JSXExpressionContainer(path: Path): void {
+              let importedContext: string = 'imported' + e;
+              path.traverse({
+                ArrowFunctionExpression(path: Path): void{
+                  path.replaceWith(
+                    t.ExpressionStatement(
+                      t.identifier(`${importedContext}`)
+                      )
                   )
-                )
-              }
-            })
-          }
+                }
+              })
+            }
+          })
         })
+
+
+        
       }
     })
     //if a static declaration has not been found we will structure the useContext statement this way.
