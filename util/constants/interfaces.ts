@@ -3,7 +3,7 @@ export interface Node {
   type: string;
   name: string;
   Identifier: any;
-  body: {body: any[]};
+  body: any;
   params: any[];
   key: {name: string};
   arguments: any[];
@@ -19,6 +19,7 @@ export interface Node {
   id: any;
   properties: any[];
   value: {name: string};
+  init: {name: string};
 }
 export interface Path {
   node: Node;

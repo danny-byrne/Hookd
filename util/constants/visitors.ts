@@ -3,7 +3,10 @@ import {Path, stateDep, handlers} from './interfaces';
 import {createFunctionDefinitions, checkKeyIdentifier, parseStateDep, checkIfHandler, makeUseStateNode, setStateToHooks, stateToHooks, thisRemover, buildStateDepTree} from '../helperfunctions';
 import * as n from './names';
 import { unstable_renderSubtreeIntoContainer } from 'react-dom';
+import { isFunctionDeclaration, blockStatement, classMethod } from '@babel/types';
+import { PassThrough } from 'stream';
 
+const HooksStatements: string[] = ['useState', 'useEffect', 'useContext'];
 const DeclarationStore: string[] = [];
 const ContextStore: string[] = [];
 let isAComponent: boolean = true;
@@ -13,6 +16,7 @@ export const ImpSpecVisitor: {ImportSpecifier: (path: Path)=> void} ={
     // check to see if the property 'imported' is an identifier with the name 'Component'
     if (path.get('imported').isIdentifier({name: 'Component'})) {
       // replace the current path (importSpecifier) with multiple new importSpcefiers
+      // console.log('replacing component specifier with hooks imports')
       path.replaceWithMultiple([
         t.importSpecifier(t.identifier(n.US), t.identifier(n.US)),
         t.importSpecifier(t.identifier(n.UE), t.identifier(n.UE)),
@@ -24,17 +28,25 @@ export const ImpSpecVisitor: {ImportSpecifier: (path: Path)=> void} ={
 
 export const ImpDeclVisitor: {ImportDeclaration: (path: Path) => void} = { 
   ImportDeclaration(path: Path): void {
-    if (!isAComponent) return path.stop();
-    path.traverse(ImpSpecVisitor)
-    // console.log('inside the import declaration, pushing those values into DeclStoreArray to check against the context consumers')
-    // console.log('ImportDeclaration path is', path.node)
     path.traverse({
       ImportDefaultSpecifier (path: Path): void {
         // console.log('inside path traversal of importDefaultSpecifier')
         // console.log('ImportDefaultSpecifier path is:', path.node)
-        DeclarationStore.push(path.node.local.name);
+        if((!HooksStatements.includes(path.node.local.name) && !DeclarationStore.includes(path.node.local.name))){
+          DeclarationStore.push(path.node.local.name);
+        }
       }
     })
+    // added this additinoal logic to take care of destructured import declarations, which are ImportSpecifiers, not ImportDefaultSpecifiers
+    path.traverse({
+      ImportSpecifier(path: Path): void {
+        // console.log('inside ImpDeclVisitor function, importSpecifier is:', path.node.local.name);
+        if(!HooksStatements.includes(path.node.local.name)){
+          DeclarationStore.push(path.node.local.name);
+        }
+      }
+    })
+    // console.log("DeclarationStore is:", DeclarationStore)
   }
 }
 
@@ -78,6 +90,7 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
     let isContext: boolean = false;
     let objectPattern: any;
     let returnStatement: any;
+    let storedBlockStatement: any;
 
 
     path.traverse({
@@ -149,18 +162,6 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
                   }
                 })
               }
-            }
-          })
-          path.traverse({
-            BlockStatement(path: Path): void {
-              // path.traverse({
-                // VariableDeclaration(path: Path): void {
-                  // console.log('going to push returnStatement which is:', returnStatement)
-                  // console.log('the path we are in is:', path.node)
-                  // path.node.body.push(returnStatement)
-                  
-              //   }
-              // })
             }
           })
         }
@@ -301,47 +302,112 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
         path.traverse({
           JSXMemberExpression(path: Path): void {
               //if right side of expression is "consumer", grab the value on the left side of the dot to construct the useContext statement
+            // console.log('inside the JSX member expression, looking for consumer and checking declaration store, which is:', DeclarationStore)
             if(path.node.property.name.toLowerCase() === 'consumer' && DeclarationStore.includes(path.node.object.name)){
+              // console.log('match found', path.node.object.name)
               // console.group('match found');
               // if DeclarationStore includes left side expession
-              ContextStore.push(path.node.object.name);
+              if(!ContextStore.includes(path.node.object.name)){
+                ContextStore.push(path.node.object.name);
+              }  
+              // console.log('contextStore is', ContextStore)
             }
             if(ContextStore.length > 1){
               multipleContexts = true;
-            } 
-            if(!multipleContexts){
+            } else {
               contextToUse = ContextStore[0];
-              path.replaceWith(
-                t.jSXMemberExpression(t.jSXIdentifier('React'), t.jSXIdentifier('Fragment'))
-              )
-            } 
+            }
+            if(!multipleContexts){
+              // console.log('only one context is found')
+              contextToUse = ContextStore[0];
+              if(path.node.property.name.toLowerCase() === 'consumer' &&  path.node.object.name === contextToUse){  
+                path.replaceWith(
+                  t.jSXMemberExpression(t.jSXIdentifier('React'), t.jSXIdentifier('Fragment'))
+                )
+              } 
+            }
           }
         })
 
-        console.log('contextStore has more than one item, transforming ')
-        ContextStore.forEach((e) => {
+        if(!multipleContexts){
           path.traverse({
             JSXExpressionContainer(path: Path): void {
-              let importedContext: string = 'imported' + e;
+              let importedContext: string = 'imported' + contextToUse;
               path.traverse({
-                ArrowFunctionExpression(path: Path): void{
+                ArrowFunctionExpression(path: Path): void {
                   path.replaceWith(
                     t.ExpressionStatement(
                       t.identifier(`${importedContext}`)
-                      )
+                    )
                   )
                 }
               })
             }
           })
-        })
+        }
+    
 
+      
 
-        
+        if(multipleContexts){
+          // console.log('contextStore has more than one item, transforming ')
+          ContextStore.forEach((e) => {
+            // console.log('inside the multipleContexts condition, ContextStore is', ContextStore);
+            path.traverse({
+              JSXExpressionContainer(path: Path): void {
+                path.traverse({
+                  ArrowFunctionExpression(path: Path): void {
+                    path.traverse({
+                      VariableDeclaration(path: Path): void {
+                        path.traverse({
+                          VariableDeclarator(path: Path): void {
+                            
+                            // console.log('inside the VariableDeclarator, path.node.init.name is:', path.node.init.name)
+                            if(path.node.init.name !== undefined) {
+                              // console.log(path.node.init.name.toUpperCase());
+                              if(path.node.init.name.toUpperCase() === e.toUpperCase()){
+                                // console.log('match found and it is', e);
+                                // console.log(path.node);
+
+                                objectPattern = path.node.id;
+                                path.replaceWith(
+                                  t.variableDeclarator(objectPattern,
+                                    t.callExpression(
+                                      t.identifier('useContext'),[
+                                        t.identifier(`${e}`)
+                                      ]
+                                    )
+                                  )
+                                )
+                                path.stop();
+                              }
+                            } 
+                          } 
+                        })
+                      }
+                    })
+                    //grab block statement to swap with JSX opening element 
+                    if(path.node.body.type === "BlockStatement"){
+                      console.log('path.node.body.type is:', path.node.body.type)
+                      storedBlockStatement = path.node.body.body;
+                      console.log("storedBlockStatement is:", storedBlockStatement)
+                    }
+                  }
+                })
+              }
+            })//end of forEach
+          })
+        }
       }
     })
+    
+
+
+
+
+    
     //if a static declaration has not been found we will structure the useContext statement this way.
-    if(!isStatic){
+    if(!isStatic && !multipleContexts){
       path.traverse(memberExpVisitor);
       path.get('body').unshiftContainer('body',
         t.variableDeclaration("const", 
@@ -354,11 +420,14 @@ export const classDeclarationVisitor: {ClassDeclaration: (path: Path) => void} =
         )
       ) 
     }
+    storedBlockStatement = multipleContexts ? storedBlockStatement : path.node.body.body;
     path.replaceWith(
       t.variableDeclaration("const", 
       [t.variableDeclarator(
         t.identifier(`${componentName}`), 
-        t.arrowFunctionExpression([t.identifier(possibleProps)], t.blockStatement(path.node.body.body)) 
+        // t.arrowFunctionExpression([t.identifier(possibleProps)], t.blockStatement(path.node.body.body || storedBlockStatement)) 
+        t.arrowFunctionExpression([t.identifier(possibleProps)], t.blockStatement(storedBlockStatement)) 
+
         )
       ])
     )

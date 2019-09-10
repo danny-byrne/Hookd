@@ -1,7 +1,7 @@
 // create functions here and export it in object
 
 import {parse,traverse,t,generate} from './util/constants/parser';
-import {ImpDeclVisitor, classDeclarationVisitor} from './util/constants/visitors';
+import {ImpDeclVisitor, classDeclarationVisitor, ImpSpecVisitor} from './util/constants/visitors';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -11,6 +11,7 @@ const ast: object = parse(file);
 // the main method to traverse the ast
 traverse(ast, {
   enter(path: any) {
+    path.traverse(ImpSpecVisitor)
     path.traverse(ImpDeclVisitor);
     path.traverse(classDeclarationVisitor);
   }
